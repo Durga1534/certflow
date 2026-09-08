@@ -15,6 +15,8 @@ export const organizations = pgTable("organizations", {
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
     deletedAt: timestamp("deleted_at"),
+
+    clerkOrganizationId: varchar("clerk_organization_id", {length: 255}).unique(),
 });
 
 export type Organization = typeof organizations.$inferSelect;
