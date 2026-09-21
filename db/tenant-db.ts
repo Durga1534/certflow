@@ -3,16 +3,19 @@ import { PgTable } from "drizzle-orm/pg-core";
 import { db } from "./index";
 import { properties, vendors, vendorDocuments, workOrders } from "./schema";
 import { TenantContext } from "./tenant-context";
+import { logAuditEvent } from "@/lib/audit/logger";
 
 /**
  * Creates a tenant-scoped database client wrapper.
- * Enforces multi-tenant isolation and active record filtering by default.
+ * Enforces multi-tenant isolation, soft-delete filtering, and audit logging.
  */
 export function createTenantDb(context: TenantContext) {
-  const { organizationId } = context;
+  const { organizationId, userId } = context;
 
   if (!organizationId) {
-    throw new Error("[TenantDB Security Violation] Attempted to instantiate TenantDB without an organizationId.");
+    throw new Error(
+      "[TenantDB Security Violation] Attempted to instantiate TenantDB without an organizationId."
+    );
   }
 
   // Helper to append org context & soft-delete filter
@@ -34,7 +37,8 @@ export function createTenantDb(context: TenantContext) {
 
   return {
     organizationId,
-    userId: context.userId,
+    userId,
+    db, // Exposes root db instance when interactive transactions are required
 
     properties: {
       async findMany(where?: SQL) {
@@ -53,7 +57,12 @@ export function createTenantDb(context: TenantContext) {
         return result ?? null;
       },
 
-      async create(data: Omit<typeof properties.$inferInsert, "id" | "organizationId" | "createdAt" | "updatedAt">) {
+      async create(
+        data: Omit<
+          typeof properties.$inferInsert,
+          "id" | "organizationId" | "createdAt" | "updatedAt"
+        >
+      ) {
         const [inserted] = await db
           .insert(properties)
           .values({
@@ -61,10 +70,25 @@ export function createTenantDb(context: TenantContext) {
             organizationId,
           })
           .returning();
+
+        if (inserted && userId) {
+          await logAuditEvent({
+            organizationId,
+            actorUserId: userId,
+            action: "PROPERTY_CREATED",
+            entityType: "properties",
+            entityId: inserted.id,
+            after: inserted,
+          });
+        }
+
         return inserted;
       },
 
-      async update(id: string, data: Partial<Omit<typeof properties.$inferInsert, "id" | "organizationId">>) {
+      async update(
+        id: string,
+        data: Partial<Omit<typeof properties.$inferInsert, "id" | "organizationId">>
+      ) {
         const [updated] = await db
           .update(properties)
           .set(data)
@@ -100,7 +124,12 @@ export function createTenantDb(context: TenantContext) {
         return result ?? null;
       },
 
-      async create(data: Omit<typeof vendors.$inferInsert, "id" | "organizationId" | "createdAt" | "updatedAt">) {
+      async create(
+        data: Omit<
+          typeof vendors.$inferInsert,
+          "id" | "organizationId" | "createdAt" | "updatedAt"
+        >
+      ) {
         const [inserted] = await db
           .insert(vendors)
           .values({
@@ -108,16 +137,63 @@ export function createTenantDb(context: TenantContext) {
             organizationId,
           })
           .returning();
+
+        if (inserted && userId) {
+          await logAuditEvent({
+            organizationId,
+            actorUserId: userId,
+            action: "VENDOR_CREATED",
+            entityType: "vendors",
+            entityId: inserted.id,
+            after: inserted,
+          });
+        }
+
         return inserted;
       },
 
-      async update(id: string, data: Partial<Omit<typeof vendors.$inferInsert, "id" | "organizationId">>) {
+      async update(
+        id: string,
+        data: Partial<Omit<typeof vendors.$inferInsert, "id" | "organizationId">>
+      ) {
         const [updated] = await db
           .update(vendors)
           .set(data)
           .where(withTenantGuard(vendors, eq(vendors.id, id)))
           .returning();
         return updated ?? null;
+      },
+
+      async updateComplianceStatus(
+        vendorId: string,
+        newStatus: "compliant" | "non_compliant" | "pending_review",
+        reason?: string
+      ) {
+        const existing = await this.findById(vendorId);
+        if (!existing) {
+          throw new Error("Vendor not found or cross-tenant access denied.");
+        }
+
+        const [updated] = await db
+          .update(vendors)
+          .set({ complianceStatus: newStatus, updatedAt: new Date() })
+          .where(withTenantGuard(vendors, eq(vendors.id, vendorId)))
+          .returning();
+
+        if (userId) {
+          await logAuditEvent({
+            organizationId,
+            actorUserId: userId,
+            action: "VENDOR_COMPLIANCE_CHANGED",
+            entityType: "vendors",
+            entityId: vendorId,
+            before: { complianceStatus: existing.complianceStatus },
+            after: { complianceStatus: updated.complianceStatus },
+            metadata: { reason },
+          });
+        }
+
+        return updated;
       },
     },
 
@@ -138,7 +214,12 @@ export function createTenantDb(context: TenantContext) {
         return result ?? null;
       },
 
-      async create(data: Omit<typeof vendorDocuments.$inferInsert, "id" | "organizationId" | "createdAt" | "updatedAt">) {
+      async create(
+        data: Omit<
+          typeof vendorDocuments.$inferInsert,
+          "id" | "organizationId" | "createdAt" | "updatedAt"
+        >
+      ) {
         const [inserted] = await db
           .insert(vendorDocuments)
           .values({
@@ -146,6 +227,18 @@ export function createTenantDb(context: TenantContext) {
             organizationId,
           })
           .returning();
+
+        if (inserted && userId) {
+          await logAuditEvent({
+            organizationId,
+            actorUserId: userId,
+            action: "DOCUMENT_UPLOADED",
+            entityType: "vendor_documents",
+            entityId: inserted.id,
+            after: inserted,
+          });
+        }
+
         return inserted;
       },
     },
@@ -167,7 +260,12 @@ export function createTenantDb(context: TenantContext) {
         return result ?? null;
       },
 
-      async create(data: Omit<typeof workOrders.$inferInsert, "id" | "organizationId" | "createdAt" | "updatedAt">) {
+      async create(
+        data: Omit<
+          typeof workOrders.$inferInsert,
+          "id" | "organizationId" | "createdAt" | "updatedAt"
+        >
+      ) {
         const [inserted] = await db
           .insert(workOrders)
           .values({
@@ -175,6 +273,18 @@ export function createTenantDb(context: TenantContext) {
             organizationId,
           })
           .returning();
+
+        if (inserted && userId) {
+          await logAuditEvent({
+            organizationId,
+            actorUserId: userId,
+            action: "WORK_ORDER_CREATED",
+            entityType: "work_orders",
+            entityId: inserted.id,
+            after: inserted,
+          });
+        }
+
         return inserted;
       },
     },
