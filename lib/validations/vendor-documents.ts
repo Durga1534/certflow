@@ -41,7 +41,7 @@ export const verifyDocumentSchema = z.object({
     documentNumber: z.string().trim().max(100, "Document cannot exceed 100 characters").optional().or(z.literal("")),
     // ISO Date Strings (YYYY-MM-DD)
     issueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Issue date must be in YYYY-MM-DD format").optional().or(z.literal("")),
-    expiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expiry date must be in YYYY-MM-DD format").optional().or(z.literal("")),
+    expiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expiry date must be in YYYY-MM-DD format"),
     propertyId: z.string().length(36).optional().nullable(),
 });
 

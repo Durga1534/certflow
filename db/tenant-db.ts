@@ -34,6 +34,7 @@ export function createTenantDb(context: TenantContext) {
 
   return {
     organizationId,
+    userId: context.userId,
 
     properties: {
       async findMany(where?: SQL) {
