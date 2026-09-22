@@ -13,7 +13,7 @@ export const vendorComplianceStatusEnum = pgEnum("vendor_compliance_status", [
     "compliant",
     "non_compliant",
     "pending_review",
-    "extempt",
+    "exempt",
 ]);
 
 export const vendors = pgTable("vendors", {
