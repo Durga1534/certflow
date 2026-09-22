@@ -66,10 +66,11 @@ export function VerificationReviewCard({ document, vendorName, previewUrl }: Rev
 
         <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
           <div>
-            <label className="text-xs font-medium text-muted-foreground block mb-1">
+            <label htmlFor="document-number" className="text-xs font-medium text-muted-foreground block mb-1">
               Policy / Doc #
             </label>
             <input
+              id="document-number"
               type="text"
               value={documentNumber}
               onChange={(e) => setDocumentNumber(e.target.value)}
@@ -79,10 +80,11 @@ export function VerificationReviewCard({ document, vendorName, previewUrl }: Rev
           </div>
 
           <div>
-            <label className="text-xs font-medium text-muted-foreground block mb-1">
+            <label htmlFor="expiration-date" className="text-xs font-medium text-muted-foreground block mb-1">
               Expiration Date *
             </label>
             <input
+              id="expiration-date"
               type="date"
               value={expiryDate}
               onChange={(e) => setExpiryDate(e.target.value)}

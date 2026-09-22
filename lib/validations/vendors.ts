@@ -5,7 +5,7 @@ export const vendorComplianceStatusSchema = z.enum([
     "compliant",
     "non_compliant",
     "pending_review",
-    "extempt",
+    "exempt",
 ]);
 
 export const createVendorSchema = z.object({
@@ -19,7 +19,13 @@ export const createVendorSchema = z.object({
     notes: z.string().trim().optional().or(z.literal("")),
 });
 
-export const updateVendorSchema = createVendorSchema.partial();
+export const updateVendorSchema = createVendorSchema
+    .omit({ status: true, complianceStatus: true })
+    .partial()
+    .extend({
+        status: vendorStatusSchema.optional(),
+        complianceStatus: vendorComplianceStatusSchema.optional(),
+    });
 
 export type CreateVendorInput = z.infer<typeof createVendorSchema>;
 export type UpdateVendorInput = z.infer<typeof updateVendorSchema>;

@@ -45,7 +45,9 @@ export function VendorTable({ initialVendors }: { initialVendors: Vendor[] }) {
                 <tr key={vendor.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                   <td className="p-4 font-medium text-slate-900 dark:text-slate-100">{vendor.name}</td>
                   <td className="p-4 text-slate-600 dark:text-slate-400">
-                    {vendor.contactName ? `${vendor.contactName} (${vendor.email || vendor.phone})` : "—"}
+                    {vendor.contactName
+                      ? `${vendor.contactName}${vendor.email || vendor.phone ? ` (${vendor.email || vendor.phone})` : ""}`
+                      : vendor.email || vendor.phone || "—"}
                   </td>
                   <td className="p-4">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${badge.className}`}>
